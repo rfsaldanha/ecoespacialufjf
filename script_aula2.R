@@ -1,10 +1,11 @@
 ##
-## Probit e logit espacial
+## Probit e Logit espacial
 ##
 
-# Bibliotecas
-library(maptools)
-library(McSpatial)
+
+# Biliotecas
+library(spdep)
+library(spatialprobit)
 
 # Abra o arquivo 'gm10.shp'
 gm10.shp <- readShapePoly(file.choose(), 
@@ -16,44 +17,41 @@ gm10.shp <- readShapePoly(file.choose(),
 gm10.shp@data$y <- gm10.shp@data$TCVPA10 > mean(gm10.shp@data$TCVPA10)
 table(gm10.shp@data$y)
 
-# Matriz de vizinhança
-wmat1 <- makew(gm10.shp)$wmat # Queen
-wmat2 <- makew(gm10.shp, method = "rook")$wmat # Rook
-wmat3 <- makew(gm10.shp, method = "knear", knum=1)$wmat # K-vizinhos
-
-#
-# Logit Espacial
-#
+# Matriz de vizinhos espaciais
+coords <- coordinates(gm10.shp)
+w1 <- kNearestNeighbors(coords[,1],coords[,2], k = 1)
 
 # Especificação
 esp <- y ~ GM + POLMPC09 + RICPOB10 + RENDA10 + DESOCU10 + CHEFA10 + DPOP10
 
-# Estimação GMM default 
-mod1 <- splogit(form = esp, 
-               data = gm10.shp@data,
-               wmat = wmat3)
+# SAR Probit
+mod1 <- sarprobit(esp, w1, gm10.shp@data)
+summary(mod1)
+impacts(mod1)
+logLik(mod1)
+plot(mod1)
 
-# Estimação GMM alterada 
-mod2 <- splogit(form = esp, 
-               data = gm10.shp@data,
-               wmat = wmat3,
-               inst = ~GM+POLMPC09+RICPOB10+RENDA10,
-               winst = ~DESOCU10+CHEFA10+DPOP10)
+# SAR Tobit
+mod2 <- sartobit(esp, w1, gm10.shp@data)
+summary(mod2)
+impacts(mod2)
+plot(mod2)
+
+# SEM Probit
+mod3 <- semprobit(esp, w1, gm10.shp@data)
+summary(mod3)
+logLik(mod3)
+plot(mod3)
+
+# SEM Tobit
+mod4 <- sartobit(esp, w1, gm10.shp@data)
+summary(mod4)
+plot(mod4)
 
 
-#
-# Probit Espacial
-#
 
-# Estimação por GMM
-mod3 <- spprobit(form = esp,
-                 data = gm10.shp@data,
-                 wmat = wmat3)
 
-# Estimação por ML
-mod4 <- spprobitml(form = esp,
-                 data = gm10.shp@data,
-                 wmat = wmat3)
+
 
 
 ##
